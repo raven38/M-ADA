@@ -14,7 +14,7 @@ class ConvNet(nn.Module):
         self.relu3 = nn.ReLU(inplace=True)
         self.fc2 = nn.Linear(1024, 1024)
         self.relu4 = nn.ReLU(inplace=True)
-        self.fc3 = nn.Linear(1024, 10)
+        self.fc3 = nn.Linear(1024, 5)
 
     def forward(self, x, return_feat=False):
         in_size = x.size(0)

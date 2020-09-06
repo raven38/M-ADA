@@ -2,8 +2,7 @@ import numpy as np
 import os
 import pickle
 from PIL import Image
-from tensorflow.examples.tutorials.mnist import input_data
-
+import tensorflow.keras.datasets as datasets
 
 def resize_images(image_arrays, size=[32, 32]):
     image_arrays = (image_arrays * 255).astype('uint8')
@@ -21,13 +20,13 @@ def download_and_process_mnist():
     if not os.path.exists('./data/mnist'):
         os.makedirs('./data/mnist')
 
-    mnist = input_data.read_data_sets(train_dir='./data/mnist')
+    (x_train, y_train), (x_test, y_test) = datasets.mnist.load_data()
 
-    train = {'X': resize_images(mnist.train.images.reshape(-1, 28, 28)),
-             'y': mnist.train.labels}
+    train = {'X': resize_images(x_train.reshape(-1, 28, 28)),
+             'y': y_train}
 
-    test = {'X': resize_images(mnist.test.images.reshape(-1, 28, 28)),
-            'y': mnist.test.labels}
+    test = {'X': resize_images(x_test.reshape(-1, 28, 28)),
+            'y': y_test}
 
     with open('./data/mnist/train.pkl', 'wb') as f:
         pickle.dump(train, f, protocol=-1)

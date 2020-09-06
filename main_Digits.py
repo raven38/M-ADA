@@ -81,13 +81,19 @@ def main():
 
     if args.mode == 'train':
         train(model, exp_name, kwargs)
-    else:
+    elif args.mode == 'test':
         evaluation(model, args.data_dir, args.batch_size, kwargs)
+    elif args.mode == 'extract':
+        extract_features(model, args.data_dir, args.batch_size, kwargs)
+    elif args.mode == 'visualize':
+        visualize(model, args.data_dir, args.batch_size, kwargs)
+    else:
+        'don\'t support this mode'
 
 def train(model, exp_name, kwargs):
     print('Pre-train wae')
     # construct train and val dataloader
-    train_loader, val_loader = construct_datasets(args.data_dir, args.batch_size, kwargs)
+    train_loader, val_loader = construct_datasets(args.data_dir, args.batch_size, kwargs, classes=[0, 1, 2, 3, 4])
     wae = WAE().cuda()
     wae_optimizer = torch.optim.Adam(wae.parameters(), lr=1e-3)
     discriminator = Adversary().cuda()
@@ -132,7 +138,11 @@ def train(model, exp_name, kwargs):
                     break
 
                 if counter_k > 0:
-                    input_b, target_b = next(aug_loader_iter)
+                    try:
+                        input_b, target_b = next(aug_loader_iter)
+                    except:
+                        aug_loader_iter = iter(aug_loader)
+                        input_b, target_b = next(aug_loader_iter)                        
                     input_comb = torch.cat((input_a[:src_num].float(), input_b[:aug_num])).cuda(non_blocking=True)
                     target_comb = torch.cat((target_a[:src_num].long(), target_b[:aug_num])).cuda(non_blocking=True)
                     input_aug = input_comb.clone()
@@ -163,9 +173,10 @@ def train(model, exp_name, kwargs):
                     ce_loss = criterion(output_aug, target_aug)
                     # Relaxation
                     relaxation = mse_loss(recon_batch, recon_batch_aug)
+                    #adv_loss = -(ce_loss - args.gamma * constraint)
                     adv_loss = -(args.beta * relaxation + ce_loss - args.gamma * constraint)
                     aug_optimizer.zero_grad()
-                    adv_loss.backward()
+                    adv_loss.backward(retain_graph=True)
                     aug_optimizer.step()
 
                 virtual_test_images.append(input_aug.data.cpu().numpy())
@@ -230,7 +241,7 @@ def train(model, exp_name, kwargs):
             except:
                 aug_loader_iter = iter(aug_loader)
                 input_b, target_b = next(aug_loader_iter)
-
+            
             input_b, target_b = input_b.cuda(non_blocking=True), target_b.cuda(non_blocking=True).long()
             output_b = model.functional(params, True, input_b)
             loss_b = criterion(output_b, target_b)
@@ -275,8 +286,8 @@ def wae_train(model, D, new_aug_loader, optimizer, d_optimizer, epoch):
 
     z_var = 1
     z_sigma = math.sqrt(z_var)
-    ones = Variable(torch.ones(32, 1)).cuda()
-    zeros = Variable(torch.zeros(32, 1)).cuda()
+    ones = Variable(torch.ones(args.batch_size, 1)).cuda()
+    zeros = Variable(torch.zeros(args.batch_size, 1)).cuda()
     param = 100
     model.train()
     train_loss = 0
@@ -296,7 +307,7 @@ def wae_train(model, D, new_aug_loader, optimizer, d_optimizer, epoch):
 
         total_D_loss = param * D_loss
         d_optimizer.zero_grad()
-        total_D_loss.backward()
+        total_D_loss.backward(retain_graph=True)
         d_optimizer.step()
 
         BCE = F.binary_cross_entropy(recon_batch, input_comb.view(-1, 3072), reduction='sum')

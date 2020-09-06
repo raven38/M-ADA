@@ -43,8 +43,6 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
-
-
 def reconstruction_loss(x_recon, x, distribution):
     r"""Calculate reconstruction loss for the general auto-encoder frameworks.
 
@@ -55,7 +53,7 @@ def reconstruction_loss(x_recon, x, distribution):
     """
     assert x_recon.size() == x.size()
 
-    n = x.size(0)
+    n = x.size(0) 
     if distribution == 'bernoulli':
         recon_loss = F.binary_cross_entropy_with_logits(x_recon, x, size_average=False).div(n)
     elif distribution == 'gaussian':
